@@ -1,0 +1,63 @@
+import numpy as np
+import moviepy.editor as mpe
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+import os
+
+# Load video
+video_path = r"C:\Users\RTX\Videos\2023-07-20 15-59-52.mp4"
+video = mpe.VideoFileClip(video_path)
+audio = video.audio
+
+# Normalize audio to 0 dB
+normalized_audio = audio.volumex(1 / audio.max_volume())
+
+# Convert to mono and get volume
+fps = audio.fps  # Get fps from audio
+mono_audio = normalized_audio.to_soundarray(fps=fps, nbytes=2)
+volume = np.sqrt(((mono_audio ** 2).mean(axis=1)))
+
+# Parameters
+volume_threshold = 0.01  # Change this based on your requirement
+duration_threshold = 60  # in seconds
+
+# Initialize list to hold non-silent clips
+silent_clips = []
+
+# Find start and end times of non-silent parts longer than the duration threshold
+start_time = None
+for i in tqdm(range(len(volume)), desc='Processing video'):
+    if volume[i] <= volume_threshold and start_time is None:
+        start_time = i / fps
+    elif volume[i] > volume_threshold and start_time is not None:
+        end_time = i / fps
+        # Only add the clip if the duration is longer than the duration threshold
+        if end_time - start_time > duration_threshold:
+            silent_clips.append(video.subclip(start_time, end_time))
+        start_time = None
+
+# If there are silent clips, concatenate them and write the output
+if silent_clips:
+    base_name = os.path.basename(video_path)  # Get the file name from the path
+    name, ext = os.path.splitext(base_name)  # Split the file name and extension
+    output_file_path = os.path.join(os.path.dirname(video_path), f"{name}_output{ext}")  # Join everything together
+    final_clip = mpe.concatenate_videoclips(silent_clips)
+    final_clip.write_videofile(output_file_path)
+else:
+    print("No silent parts longer than one minute were found")
+
+# Load the output video and compute its volume
+output_video = mpe.VideoFileClip(output_file_path)
+output_audio = output_video.audio
+normalized_output_audio = output_audio.volumex(1 / output_audio.max_volume())
+mono_output_audio = normalized_output_audio.to_soundarray(fps=fps, nbytes=2)
+output_volume = np.sqrt(((mono_output_audio ** 2).mean(axis=1)))
+
+# Plot volume
+time = np.array([i / fps for i in range(len(volume))])
+output_time = np.array([i / fps for i in range(len(output_volume))])
+plt.figure(figsize=(12, 4))
+plt.plot(time, volume, label="Original Volume")
+plt.plot(output_time, output_volume, label="Output Volume")
+plt.legend()
+plt.show()
