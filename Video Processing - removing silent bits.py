@@ -7,7 +7,7 @@ import librosa
 from tqdm import tqdm
 
 # Define the folder where the video is located
-# folder_path = "C:\\Users\\RTX\\Videos"
+folder_path = "C:\\Users\\RTX\\Videos"
 
 # Specify the video file name
 # video_file_name = "2023-07-20 15-59-52.mp4"
